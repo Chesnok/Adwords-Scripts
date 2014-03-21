@@ -1,0 +1,76 @@
+/* Created by Alexey Chesnok
+/ google.com/+AlexeyChesnok
+/  v.2.0 beta
+/ EST - script pulls server time. Check it, most likely it will be pacific time - you
+/ can adjust time in (today.getHours()+3) here - (PST+3) for EST
+/ Script grabs day/hour bid data from spreadsheet, matches against server time and updates 
+/ geolocation multipliers in all campaigns listed in column C. 
+/ Day/time format is following: day 1-7 Sunday-Saturday, hour 0-23,  
+/ for example 617 for Friday 5 pm.
+/ Don’t miss comments in column headers on example spreadsheet: goo.gl/0Gh4VE 
+/ Suggested use: schedule script to run every hour,
+/ once it runs first time check time when it was running during the hour for example 8:55 all 
+/  consequent runs are likely to be around this time too - 9:55, 10:55 etc. Adjust your 
+/ bid-multipliers  on source spreadsheet accordingly.
+ */
+
+
+
+var SPREADSHEET_URL = 'https://docs.google.com/spreadsheet/ccc?key=0Ap_9jN6s0WJydGdkejhQSWpfTkpwTlo0ZDVCbGpVTnc#gid=0';
+var DATA_RANGE = 'A:C';
+
+function main() {
+var today = new Date();
+ var day_time = (today.getDay()+1) + "" + (today.getHours()+3);
+  
+  var spreadsheet = SpreadsheetApp.openByUrl(SPREADSHEET_URL);
+  var allSheets = spreadsheet.getSheets();
+  var allData = [];
+  for(var i in allSheets) {
+    var sheet = allSheets[i];
+    var data = sheet.getRange(DATA_RANGE).getValues();
+    data.shift(); //get rid of headers
+    allData = allData.concat(data);
+  }
+var campNames = [];  
+var allDataHash = {};
+  for(var i in allData) {
+    var row = allData[i];
+    if(row[0] === '') { continue; }
+    var rowKey = row[0].toString();
+    if(row[2] !== '') {
+      campNames.push(row[2]);
+    } 
+    allDataHash[rowKey] = {newBid: row[1]};
+  }
+  
+    
+  
+ var campIter = AdWordsApp.campaigns()
+.withCondition("Status = ENABLED")       
+.get();
+  
+  while (campIter.hasNext()) {
+    var camp = campIter.next();
+    var campName=camp.getName();
+    var rowKey = day_time;
+    if (isInArray(campName,campNames)){
+      if (allDataHash[rowKey]){ 
+        // Get locations.
+    var locations = camp.targeting().targetedLocations().get();
+    while (locations.hasNext()) {
+      var location = locations.next();
+          location.setBidModifier(allDataHash[rowKey].newBid);
+      }
+    }
+    } 
+}
+  
+function isInArray(value, array) {
+  return array.indexOf(value) != -1;
+}
+ Logger.log(allData);
+  Logger.log(day_time);
+  Logger.log(campNames);
+  Logger.log(rowKey);
+}
