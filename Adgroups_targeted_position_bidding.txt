@@ -1,0 +1,91 @@
+﻿/*************** 
+*Created by Alexey Chesnok google.com/+AlexeyChesnok
+*v. 2.0
+****************/
+
+
+// Script Adjust Adgroups bids within specified campaign based 
+// on 7 last data aiming for targeted position. 
+
+
+// what position are you trying to achieve?
+var TARGET_AVERAGE_POSITION = 2.5;
+
+
+// Adgroups in which campaign you want to target
+/**** UPDATE !!! ****/
+// Replace with the name of your campaign if needed.
+  var campaignName = "Campaign Name";
+
+
+/// Label for Adgroups you want to target
+/**** UPDATE !!! ****/
+// Replace with the name of your label
+var labelName = “Label Name”
+
+
+// What are maximum and minimum bid limits you want to have for adgroup?
+/**** UPDATE !!! ****/
+// Set up Maximum and minimum bids
+var MINIMUM_BID = 1;
+var MAXIMUM_BID = 8;
+
+
+// Do you want to leave some wiggle room for your Adgroup bids
+/**** UPDATE !!! ****/
+// Once the Adgroups fall within TOLERANCE of TARGET_AVERAGE_POSITION,
+// their bids will no longer be adjusted.
+var TOLERANCE = 0.5;
+
+
+// How much to adjust the bids?
+/**** UPDATE !!! ****/
+var BID_ADJUSTMENT_COEFFICIENT = 1.05;
+
+
+var adGroup = AdWordsApp.adGroups().get().next();
+
+
+function main() {
+  raiseAdgroupBids();
+  lowerAdgroupBids();
+}
+
+
+function raiseAdgroupBids() {
+  // adjust this condition!
+  var adgroupsToRaise = AdWordsApp.adGroups()
+   .withCondition("CampaignName = '" + campaignName + "'")
+   .withCondition("Status = ENABLED")
+   .withCondition("AveragePosition > " + (TARGET_AVERAGE_POSITION + TOLERANCE))
+   .withCondition("KeywordMaxCpc < " + MAXIMUM_BID)
+   .withCondition("LabelNames = '" + labelName + "'")
+   .orderBy("AveragePosition ASC")
+   .forDateRange("LAST_7_DAYS")
+    .get();
+  
+  while (adgroupsToRaise.hasNext()) {
+    var adGroup = adgroupsToRaise.next();
+    adGroup.setKeywordMaxCpc(adGroup.getKeywordMaxCpc() * BID_ADJUSTMENT_COEFFICIENT);
+  }
+}
+
+
+function lowerAdgroupBids() {
+  // adjust this condition!
+  var adgroupsToLower = AdWordsApp.adGroups()
+   .withCondition("CampaignName = '" + campaignName + "'")
+    .withCondition("AveragePosition < " + (TARGET_AVERAGE_POSITION - TOLERANCE))
+    .withCondition("Status = ENABLED")
+    .withCondition("KeywordMaxCpc > " + MINIMUM_BID)
+    .withCondition("LabelNames = '" + labelName + "'")
+    .orderBy("AveragePosition DESC")
+    .forDateRange("LAST_7_DAYS")
+    .get();
+    
+  
+  while (adgroupsToLower.hasNext()) {
+    var adGroup = adgroupsToLower.next();
+    adGroup.setKeywordMaxCpc(adGroup.getKeywordMaxCpc() / BID_ADJUSTMENT_COEFFICIENT);
+  }
+}
